@@ -68,8 +68,11 @@ uint8_t gatewayAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};  // UPDATE WITH
 // ============================================================================
 // NODE CONFIGURATION
 // ============================================================================
-static const uint8_t NODE_ID = 1;  // Unique ID for this detection node (1-255)
-static uint32_t gDetectionSequence = 0;
+// *** CHANGE THIS BEFORE FLASHING EACH PUCK ***
+// Puck 1 = 1, Puck 2 = 2, Puck 3 = 3
+static const uint8_t NODE_ID = 1;  // <<< MUST BE UNIQUE PER PUCK
+static uint32_t gDetectionSequence   = 0;
+static uint32_t gTotalDetectionsSent = 0;  // counts successful ESP-NOW sends
 
 // ============================================================================
 // DATA STRUCTURES
@@ -689,7 +692,12 @@ static void sendDetectionViaEspNow(float range_m, float speed_mps, float heading
                 msg.range_m, msg.speed_mps, msg.heading_deg);
   Serial.printf("Energy: %.1f%% | Noise floor: %.1f%%\n",
                 msg.energyLevel * 100.0f, gRadarFilter.noiseFloorNorm * 100.0f);
-  Serial.printf("ESP-NOW: %s\n", result == ESP_OK ? "SENT" : "FAILED");
+  if (result == ESP_OK) {
+    gTotalDetectionsSent++;
+    Serial.printf("ESP-NOW: SENT (total sent: %d)\n", gTotalDetectionsSent);
+  } else {
+    Serial.println("ESP-NOW: FAILED");
+  }
   Serial.println("=========================================\n");
 }
 
@@ -797,6 +805,66 @@ static void applyRadarFilter(unsigned long now,
 }
 
 // ============================================================================
+// TEST HELPERS
+// ============================================================================
+
+// 't' command: send a test ESP-NOW ping with current sensor readings.
+// Useful for verifying mesh connectivity without triggering a real detection.
+static void sendTestPing() {
+  if (!gGpsData.valid) {
+    Serial.printf("[N%d][TEST] No GPS fix - sending with zeroed coords\n", NODE_ID);
+  }
+
+  DetectionMessage msg;
+  msg.nodeId          = NODE_ID;
+  msg.sequenceNumber  = 0;  // sequence 0 = test ping, gateway can ignore for threat logic
+  msg.timestamp       = millis();
+  msg.latitude        = gGpsData.valid ? gGpsData.latitude  : 0.0f;
+  msg.longitude       = gGpsData.valid ? gGpsData.longitude : 0.0f;
+  msg.altitude        = gGpsData.valid ? gGpsData.altitude  : 0.0f;
+  msg.range_m         = gRadarFilter.lastRange;
+  msg.speed_mps       = gRadarFilter.lastSpeed;
+  msg.heading_deg     = isfinite(gLastHeadingDeg) ? gLastHeadingDeg : 0.0f;
+  msg.energyLevel     = gRadarFilter.smoothedEnergyNorm;
+  msg.satellites      = gGpsData.satellites;
+  msg.confidenceLevel = 0;  // 0 = test, not a real detection
+
+  esp_err_t result = esp_now_send(gatewayAddress, (uint8_t *)&msg, sizeof(msg));
+  Serial.printf("[N%d][TEST] Ping sent: %s | Radar:%s IMU:%s GPS:%s\n",
+                NODE_ID,
+                result == ESP_OK ? "OK" : "FAILED",
+                gRadarReady ? "OK" : "ERR",
+                gImuReady  ? "OK" : "ERR",
+                gGpsData.valid ? "FIX" : "NO FIX");
+}
+
+// 's' command: print full status immediately without waiting 5 seconds.
+static void printStatusNow() {
+  Serial.printf("\n[N%d][STATUS] ===== NODE %d STATUS =====\n", NODE_ID, NODE_ID);
+  Serial.printf("[N%d][STATUS] Radar: %s | IMU: %s | GPS: %s\n",
+                NODE_ID,
+                gRadarReady ? "OK" : "ERR",
+                gImuReady   ? "OK" : "ERR",
+                gGpsData.valid ? "FIX" : "NO FIX");
+  if (gGpsData.valid) {
+    Serial.printf("[N%d][STATUS] GPS: %.6f, %.6f | Alt: %.1fm | Sats: %d | HDOP: %.1f\n",
+                  NODE_ID, gGpsData.latitude, gGpsData.longitude,
+                  gGpsData.altitude, gGpsData.satellites, gGpsData.hdop);
+  }
+  if (isfinite(gLastHeadingDeg)) {
+    Serial.printf("[N%d][STATUS] Heading: %.1f deg\n", NODE_ID, gLastHeadingDeg);
+  }
+  Serial.printf("[N%d][STATUS] Energy: %.1f%% | Noise floor: %.1f%%\n",
+                NODE_ID,
+                gRadarFilter.smoothedEnergyNorm * 100.0f,
+                gRadarFilter.noiseFloorNorm * 100.0f);
+  Serial.printf("[N%d][STATUS] Detections sent: %d | Seq: %d | Paused: %s\n",
+                NODE_ID, gTotalDetectionsSent, gDetectionSequence,
+                gPausedByGateway ? "YES" : "NO");
+  Serial.printf("[N%d][STATUS] ===========================\n\n", NODE_ID);
+}
+
+// ============================================================================
 // SETUP
 // ============================================================================
 
@@ -866,8 +934,8 @@ void setup() {
   Serial.println(gImuReady ? "[IMU] Online" : "[IMU] Failed - will retry");
 
   Serial.println("\n========================================");
-  Serial.println("Commands: 'c' = calibrate IMU, 'x' = cancel");
-  Serial.println("CSV: time,tgt,range,speed,energy,hdg,gps,lat,lon,sat");
+  Serial.println("Commands: 'c'=calibrate IMU  'x'=cancel  't'=test ping  's'=status now");
+  Serial.println("CSV: node,time,tgt,range,speed,energy,hdg,gps,lat,lon,sat");
   Serial.println("========================================\n");
 
   updateDynamicTimings(false);  // Start in idle mode
@@ -884,11 +952,10 @@ void loop() {
   // Handle serial commands
   while (Serial.available() > 0) {
     const int c = Serial.read();
-    if (c == 'c' || c == 'C') {
-      startImuCalibration();
-    } else if (c == 'x' || c == 'X') {
-      cancelImuCalibration();
-    }
+    if      (c == 'c' || c == 'C') { startImuCalibration(); }
+    else if (c == 'x' || c == 'X') { cancelImuCalibration(); }
+    else if (c == 't' || c == 'T') { sendTestPing(); }   // test ESP-NOW send
+    else if (c == 's' || c == 'S') { printStatusNow(); } // on-demand status
   }
 
   // Continuous GPS reading
@@ -901,11 +968,13 @@ void loop() {
   // Status print (every 5 seconds)
   if (now - gLastStatusPrintMs >= STATUS_PRINT_INTERVAL_MS) {
     gLastStatusPrintMs = now;
-    Serial.printf("[STATUS] Radar:%s IMU:%s GPS:%s%s Seq:%d\n",
+    Serial.printf("[N%d][STATUS] Radar:%s IMU:%s GPS:%s%s Sent:%d Seq:%d\n",
+                  NODE_ID,
                   gRadarReady ? "OK" : "ERR",
-                  gImuReady ? "OK" : "ERR",
+                  gImuReady   ? "OK" : "ERR",
                   gGpsData.valid ? "FIX" : "NO",
                   gPausedByGateway ? " PAUSED" : "",
+                  gTotalDetectionsSent,
                   gDetectionSequence);
   }
 
@@ -945,6 +1014,8 @@ void loop() {
 
   // CSV output (reduced when paused)
   if (!gPausedByGateway || (now % 1000 < 200)) {  // Less frequent output when paused
+    Serial.print(NODE_ID);
+    Serial.print(',');
     Serial.print(now);
     Serial.print(',');
     Serial.print(targets);
