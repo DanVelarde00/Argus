@@ -479,9 +479,10 @@ static void readGps(unsigned long nowMs) {
     }
   }
 
-  // Mark GPS as stale if no update in 5 seconds
-  if (gGpsData.valid && (nowMs - gGpsData.lastUpdateMs > 5000)) {
-    gGpsData.valid = false;
+  // If live signal goes stale, fall back to saved position rather than clearing valid
+  if (gGpsData.valid && !gGpsData.fromSaved && (nowMs - gGpsData.lastUpdateMs > 5000)) {
+    Serial.printf("[N%d][GPS] Live signal stale - holding saved position\n", NODE_ID);
+    gGpsData.fromSaved = true;
   }
 }
 
