@@ -76,6 +76,16 @@ static uint32_t gDetectionSequence   = 0;
 static uint32_t gTotalDetectionsSent = 0;  // counts successful ESP-NOW sends
 
 // ============================================================================
+// MOCK GPS  (indoor testing only)
+// Set MOCK_GPS_ENABLED to true to bypass real GPS and use hardcoded coords.
+// Set to false for real deployment — NVS saved position takes over outdoors.
+// ============================================================================
+static const bool MOCK_GPS_ENABLED = true;
+static const float MOCK_LAT = 41.391800f;   // <<< set to your actual test location
+static const float MOCK_LON = -73.956800f;  // <<< West Point coords as default
+static const float MOCK_ALT = 85.0f;        // metres above sea level
+
+// ============================================================================
 // DATA STRUCTURES
 // ============================================================================
 
@@ -458,6 +468,7 @@ static void processNmeaSentence(const String &sentence) {
 }
 
 static void readGps(unsigned long nowMs) {
+  if (MOCK_GPS_ENABLED) return;  // mock active - skip real parsing
   if (nowMs - gLastGpsReadMs < gCurrentGpsInterval) {
     return;
   }
@@ -992,6 +1003,18 @@ void setup() {
 
   // Load saved GPS position from NVS (persists across power cycles)
   loadSavedGps();
+
+  // Mock GPS override for indoor testing
+  if (MOCK_GPS_ENABLED) {
+    gGpsData.latitude   = MOCK_LAT;
+    gGpsData.longitude  = MOCK_LON;
+    gGpsData.altitude   = MOCK_ALT;
+    gGpsData.valid      = true;
+    gGpsData.fromSaved  = false;
+    gGpsData.satellites = 0;
+    gGpsData.lastUpdateMs = millis();
+    Serial.printf("[N%d][GPS] MOCK MODE: using %.6f, %.6f\n", NODE_ID, MOCK_LAT, MOCK_LON);
+  }
 
   // GPS (Serial2)
   Serial.println("[GPS] Initializing...");
