@@ -972,10 +972,17 @@ void setup() {
     esp_now_register_send_cb(onDataSent);
     esp_now_register_recv_cb(onDataRecv);
 
+    // Lock to channel 1 so both ends agree (no AP association on either side)
+    esp_wifi_set_promiscuous(true);
+    esp_wifi_set_channel(1, WIFI_SECOND_CHAN_NONE);
+    esp_wifi_set_promiscuous(false);
+
     // Add gateway peer
     esp_now_peer_info_t peerInfo;
+    memset(&peerInfo, 0, sizeof(peerInfo));
     memcpy(peerInfo.peer_addr, gatewayAddress, 6);
-    peerInfo.channel = 0;
+    peerInfo.channel = 1;
+    peerInfo.ifidx = WIFI_IF_STA;
     peerInfo.encrypt = false;
 
     if (esp_now_add_peer(&peerInfo) != ESP_OK) {

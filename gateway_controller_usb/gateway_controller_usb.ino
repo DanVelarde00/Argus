@@ -541,6 +541,13 @@ void setup() {
 
   // WiFi and ESP-NOW
   WiFi.mode(WIFI_STA);
+  WiFi.disconnect();
+
+  // Lock to channel 1 so both ends agree
+  esp_wifi_set_promiscuous(true);
+  esp_wifi_set_channel(1, WIFI_SECOND_CHAN_NONE);
+  esp_wifi_set_promiscuous(false);
+
   Serial.print("[WIFI] MAC Address: ");
   Serial.println(WiFi.macAddress());
   Serial.println("** CONFIGURE NODES WITH THIS MAC **");
