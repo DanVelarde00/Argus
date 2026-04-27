@@ -34,7 +34,8 @@ def log(tag, msg):
 class Drone:
     def __init__(self):
         log("FC", f"Connecting to {FC}")
-        self.m = mavutil.mavlink_connection(FC)
+        self.m = mavutil.mavlink_connection(FC, source_system=255)
+        self.m.mav.heartbeat_send(6, 8, 192, 0, 4)
         self.m.wait_heartbeat(timeout=30)
         log("FC", f"Heartbeat from sys={self.m.target_system}")
         for s in (mavutil.mavlink.MAV_DATA_STREAM_POSITION,

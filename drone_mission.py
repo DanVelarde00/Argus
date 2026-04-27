@@ -112,7 +112,9 @@ class DroneMissionController:
     def connect_fc(self) -> None:
         """Connect to the flight controller through mavlink-router."""
         log("FC", f"Connecting: {FC_CONNECTION}")
-        self.mav = mavutil.mavlink_connection(FC_CONNECTION)
+        self.mav = mavutil.mavlink_connection(FC_CONNECTION, source_system=255)
+        # Announce ourselves as a GCS so mavlink-router starts forwarding to us.
+        self.mav.mav.heartbeat_send(6, 8, 192, 0, 4)
         self.mav.wait_heartbeat(timeout=30)
         log("FC", f"Heartbeat OK  system={self.mav.target_system} "
                    f"component={self.mav.target_component}")
