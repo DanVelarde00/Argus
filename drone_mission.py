@@ -48,7 +48,7 @@ ESP32_BAUD = 115200
 
 # Mission parameters
 CRUISE_ALTITUDE_M  = 20.0   # AGL metres for the intercept flight
-HOVER_DURATION_S   = 30     # Seconds to loiter at waypoint
+HOVER_DURATION_S   = 10     # Seconds to loiter at waypoint
 WAYPOINT_RADIUS_M  = 2.0    # Acceptance radius (metres, ground distance)
 GPS_TIMEOUT_S      = 60     # Seconds to wait for 3-D fix before aborting
 ARM_TIMEOUT_S      = 30     # Seconds to wait for arming confirmation
