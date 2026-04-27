@@ -17,7 +17,7 @@
 static const uint8_t MAX_NODES = 10;              // Maximum detection nodes
 static const uint32_t NODE_TIMEOUT_MS = 30000;    // Node considered offline after 30s
 static const uint32_t THREAT_CONFIRMATION_MS = 2000;  // Threat must persist 2 seconds
-static const uint8_t MIN_CONFIDENCE_LEVEL = 70;   // Minimum confidence % for threat
+static const uint8_t MIN_CONFIDENCE_LEVEL = 25;   // Minimum confidence % for threat (lowered for indoor/no-GPS testing)
 static const uint32_t MISSION_TIMEOUT_MS = 120000; // Auto-resume after 2 minutes if no drone response
 static const uint32_t STATUS_PRINT_INTERVAL_MS = 10000; // Status every 10s
 
@@ -326,27 +326,33 @@ void onDataSent(const wifi_tx_info_t *info, esp_now_send_status_t status) {
 // ============================================================================
 
 static void sendDetectionToPi(const DetectionMessage &msg) {
-  // JSON-like format for easy parsing on Pi
-  Serial.print("{\"type\":\"detection\",");
-  Serial.printf("\"node\":%d,\"seq\":%d,\"ts\":%lu,",
-                 msg.nodeId, msg.sequenceNumber, msg.timestamp);
-  Serial.printf("\"lat\":%.6f,\"lon\":%.6f,\"alt\":%.1f,",
-                 msg.latitude, msg.longitude, msg.altitude);
-  Serial.printf("\"range\":%.1f,\"speed\":%.1f,\"heading\":%.1f,",
-                 msg.range_m, msg.speed_mps, msg.heading_deg);
-  Serial.printf("\"energy\":%.2f,\"conf\":%d,\"sats\":%d}\n",
-                 msg.energyLevel, msg.confidenceLevel, msg.satellites);
+  // Build JSON atomically into a buffer to avoid interleaving with other
+  // Serial.print() calls from the main task (ESP-NOW recv callback runs
+  // on a separate task and would otherwise cut into a multi-call print).
+  char buf[256];
+  snprintf(buf, sizeof(buf),
+           "{\"type\":\"detection\",\"node\":%d,\"seq\":%d,\"ts\":%lu,"
+           "\"lat\":%.6f,\"lon\":%.6f,\"alt\":%.1f,"
+           "\"range\":%.1f,\"speed\":%.1f,\"heading\":%.1f,"
+           "\"energy\":%.2f,\"conf\":%d,\"sats\":%d}",
+           msg.nodeId, msg.sequenceNumber, msg.timestamp,
+           msg.latitude, msg.longitude, msg.altitude,
+           msg.range_m, msg.speed_mps, msg.heading_deg,
+           msg.energyLevel, msg.confidenceLevel, msg.satellites);
+  Serial.println(buf);
 }
 
 static void sendThreatToPi() {
-  Serial.print("{\"type\":\"threat_confirmed\",");
-  Serial.printf("\"node\":%d,\"conf\":%d,",
-                 gCurrentThreat.sourceNodeId, gCurrentThreat.confidence);
-  Serial.printf("\"target_lat\":%.6f,\"target_lon\":%.6f,",
-                 gCurrentThreat.targetLat, gCurrentThreat.targetLon);
-  Serial.printf("\"range\":%.1f,\"speed\":%.1f,\"heading\":%.1f}\n",
-                 gCurrentThreat.range_m, gCurrentThreat.speed_mps,
-                 gCurrentThreat.heading_deg);
+  char buf[256];
+  snprintf(buf, sizeof(buf),
+           "{\"type\":\"threat_confirmed\",\"node\":%d,\"conf\":%d,"
+           "\"target_lat\":%.6f,\"target_lon\":%.6f,"
+           "\"range\":%.1f,\"speed\":%.1f,\"heading\":%.1f}",
+           gCurrentThreat.sourceNodeId, gCurrentThreat.confidence,
+           gCurrentThreat.targetLat, gCurrentThreat.targetLon,
+           gCurrentThreat.range_m, gCurrentThreat.speed_mps,
+           gCurrentThreat.heading_deg);
+  Serial.println(buf);
 }
 
 static void sendStatusToPi() {
@@ -358,10 +364,13 @@ static void sendStatusToPi() {
   const char *stateStr[] = {"IDLE", "THREAT_DETECTED", "DRONE_DEPLOYING",
                             "DRONE_EN_ROUTE", "DRONE_ENGAGING", "MISSION_COMPLETE"};
 
-  Serial.print("{\"type\":\"status\",");
-  Serial.printf("\"state\":\"%s\",\"nodes\":%d,\"detections\":%d,\"threats\":%d}\n",
-                 stateStr[gMissionState], activeNodes,
-                 gTotalDetectionsReceived, gTotalThreatsConfirmed);
+  char buf[160];
+  snprintf(buf, sizeof(buf),
+           "{\"type\":\"status\",\"state\":\"%s\",\"nodes\":%d,"
+           "\"detections\":%d,\"threats\":%d}",
+           stateStr[gMissionState], activeNodes,
+           gTotalDetectionsReceived, gTotalThreatsConfirmed);
+  Serial.println(buf);
 }
 
 // ============================================================================
