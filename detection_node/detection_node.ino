@@ -64,14 +64,14 @@ static const unsigned long CALIBRATION_DURATION_MS = 15000;
 // ============================================================================
 // GATEWAY MAC ADDRESS - UPDATE THIS
 // ============================================================================
-uint8_t gatewayAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};  // UPDATE WITH GATEWAY MAC
+uint8_t gatewayAddress[] = {0xEC, 0xE3, 0x34, 0x44, 0xE1, 0x20};  // UPDATE WITH GATEWAY MAC
 
 // ============================================================================
 // NODE CONFIGURATION
 // ============================================================================
 // *** CHANGE THIS BEFORE FLASHING EACH PUCK ***
 // Puck 1 = 1, Puck 2 = 2, Puck 3 = 3
-static const uint8_t NODE_ID = 1;  // <<< MUST BE UNIQUE PER PUCK
+static const uint8_t NODE_ID = 3;  // <<< MUST BE UNIQUE PER PUCK
 static uint32_t gDetectionSequence   = 0;
 static uint32_t gTotalDetectionsSent = 0;  // counts successful ESP-NOW sends
 
