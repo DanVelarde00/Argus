@@ -12,9 +12,9 @@ import time
 from pymavlink import mavutil
 
 FC          = "tcp:127.0.0.1:5760"
-ALT_M       = 20.0
+ALT_M       = 2.0
 HOVER_S     = 30
-WP_RADIUS_M = 2.0
+WP_RADIUS_M = 5.0
 
 MODE_GUIDED, MODE_LOITER, MODE_RTL = 4, 5, 6
 
