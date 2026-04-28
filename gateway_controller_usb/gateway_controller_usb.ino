@@ -17,7 +17,7 @@
 static const uint8_t MAX_NODES = 10;              // Maximum detection nodes
 static const uint32_t NODE_TIMEOUT_MS = 30000;    // Node considered offline after 30s
 static const uint32_t THREAT_CONFIRMATION_MS = 2000;  // Threat must persist 2 seconds
-static const uint8_t MIN_CONFIDENCE_LEVEL = 25;   // Minimum confidence % for threat (lowered for indoor/no-GPS testing)
+static const uint8_t MIN_CONFIDENCE_LEVEL = 40;   // Minimum confidence % for threat
 static const uint32_t MISSION_TIMEOUT_MS = 120000; // Auto-resume after 2 minutes if no drone response
 static const uint32_t STATUS_PRINT_INTERVAL_MS = 10000; // Status every 10s
 

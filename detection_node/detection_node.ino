@@ -71,7 +71,7 @@ uint8_t gatewayAddress[] = {0xEC, 0xE3, 0x34, 0x44, 0xE1, 0x20};  // UPDATE WITH
 // ============================================================================
 // *** CHANGE THIS BEFORE FLASHING EACH PUCK ***
 // Puck 1 = 1, Puck 2 = 2, Puck 3 = 3
-static const uint8_t NODE_ID = 3;  // <<< MUST BE UNIQUE PER PUCK
+static const uint8_t NODE_ID = 1;  // <<< MUST BE UNIQUE PER PUCK
 static uint32_t gDetectionSequence   = 0;
 static uint32_t gTotalDetectionsSent = 0;  // counts successful ESP-NOW sends
 
@@ -80,7 +80,7 @@ static uint32_t gTotalDetectionsSent = 0;  // counts successful ESP-NOW sends
 // Set MOCK_GPS_ENABLED to true to bypass real GPS and use hardcoded coords.
 // Set to false for real deployment — NVS saved position takes over outdoors.
 // ============================================================================
-static const bool MOCK_GPS_ENABLED = true;
+static const bool MOCK_GPS_ENABLED = false;
 static const float MOCK_LAT = 41.391800f;   // <<< set to your actual test location
 static const float MOCK_LON = -73.956800f;  // <<< West Point coords as default
 static const float MOCK_ALT = 85.0f;        // metres above sea level
